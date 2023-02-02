@@ -29,7 +29,7 @@ public class StatController {
 
     @PostMapping("/hit")
     public ResponseEntity<HitDto> create(@Valid @RequestBody HitDto hitDto) {
-        log.info("Получен Post запрос к эндпоинту: /hit" + "\n" + hitDto);
+        log.info(("Получен Post запрос к эндпоинту: /hit \n {}"), hitDto);
         return new ResponseEntity<>(statService.create(hitDto), HttpStatus.CREATED);
     }
 
@@ -40,11 +40,9 @@ public class StatController {
                                                 @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime endRange,
                                                 @RequestParam(value = "uris") Optional<List<String>> uris,
                                                 @RequestParam(value = "unique", defaultValue = "false") boolean unique) {
-        log.info("Получен Get запрос к эндпоинту: /stats" +
-                "\n" + "startRange = " + startRange +
-                "\n" + "endRange = " + endRange +
-                "\n" + "uris = " + uris +
-                "\n" + "unique = " + unique);
+        log.info(("Получен Get запрос к эндпоинту: /stats с параметрами: " +
+                          "\n startRange = {}, \n endRange = {}, \n uris = {}, \n unique = {}"),
+                startRange, endRange, uris, unique);
         return new ResponseEntity<>(statService.getStats(startRange, endRange, uris, unique), HttpStatus.OK);
     }
 }
