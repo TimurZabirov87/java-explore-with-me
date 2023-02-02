@@ -1,24 +1,28 @@
-package ru.practicum.ewm.hit.mapper;
+package ru.practicum.ewm.model.mapper;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import ru.practicum.ewm.hit.dto.HitDto;
-import ru.practicum.ewm.hit.model.Hit;
+import ru.practicum.ewm.model.App;
+import ru.practicum.ewm.model.Hit;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class HitMapper {
 
     public static HitDto toHitDto(Hit hit) {
         return new HitDto(
-                hit.getId() != null ? hit.getId() : null,
-                hit.getApp(),
+                hit.getId(),
+                hit.getApp().getName(),
                 hit.getUri(),
                 hit.getIp(),
                 hit.getCreated()
         );
     }
 
-    public static Hit toHit(HitDto hitDto) {
+    public static Hit toHit(HitDto hitDto, App app) {
         return new Hit(
-                hitDto.getId() != null ? hitDto.getId() : null,
-                hitDto.getApp(),
+                hitDto.getId(),
+                app,
                 hitDto.getUri(),
                 hitDto.getIp(),
                 hitDto.getCreated()
