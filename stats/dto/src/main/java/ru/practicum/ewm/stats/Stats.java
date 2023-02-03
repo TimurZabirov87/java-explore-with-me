@@ -1,11 +1,14 @@
 package ru.practicum.ewm.stats;
 
-public interface Stats {
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
-    String getApp();
-
-    String getUri();
-
-    Integer getHits();
-
+@Getter
+@Setter
+@AllArgsConstructor
+public class Stats {
+    String app;
+    String uri;
+    Long hits;
 }
