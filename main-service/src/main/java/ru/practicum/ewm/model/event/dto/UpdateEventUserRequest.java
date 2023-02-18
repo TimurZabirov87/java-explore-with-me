@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import ru.practicum.ewm.model.event.EventStateActionUser;
 import ru.practicum.ewm.model.location.Location;
 
+import javax.validation.constraints.PositiveOrZero;
+import javax.validation.constraints.Size;
 import java.time.LocalDateTime;
 
 
@@ -15,16 +17,20 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class UpdateEventUserRequest {
 
-    private String annotation; //min = 20, max = 2000
+    @Size(min = 20, max = 2000)
+    private String annotation;
     private Long category;
-    private String description; // min = 20, max 7000
+    @Size(min = 20, max = 7000)
+    private String description;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", shape = JsonFormat.Shape.STRING)
     private LocalDateTime eventDate;
     private Location location;
     private Boolean paid;
+    @PositiveOrZero
     private Long participantLimit;
     private Boolean requestModeration;
     private EventStateActionUser stateAction;
-    private String title; //required min = 3, max =120
+    @Size(min = 3, max = 120)
+    private String title;
 
 }

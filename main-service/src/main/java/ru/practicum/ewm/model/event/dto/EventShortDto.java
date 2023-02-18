@@ -20,7 +20,7 @@ public class EventShortDto {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", shape = JsonFormat.Shape.STRING)
     private LocalDateTime eventDate; //required
     private UserShortDto initiator; //required
-    private boolean paid; //required
+    private Boolean paid; //required
     private String title; //required
-    private long views;
+    private Integer views;
 }

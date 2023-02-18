@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.ewm.StatsClient;
@@ -17,18 +18,20 @@ import ru.practicum.ewm.model.event.EventStateActionAdmin;
 import ru.practicum.ewm.model.event.SortShortDtoByViewsComparator;
 import ru.practicum.ewm.model.event.dto.*;
 import ru.practicum.ewm.model.event.entity.Event;
+import ru.practicum.ewm.model.participation.ConfirmedRequests;
+import ru.practicum.ewm.model.participation.RequestStatus;
 import ru.practicum.ewm.model.user.dto.UserMapper;
 import ru.practicum.ewm.model.user.dto.UserShortDto;
 import ru.practicum.ewm.model.user.entity.User;
 import ru.practicum.ewm.repository.CategoryRepository;
 import ru.practicum.ewm.repository.EventRepository;
+import ru.practicum.ewm.repository.RequestRepository;
 import ru.practicum.ewm.repository.UserRepository;
 import ru.practicum.ewm.service.PageMapper;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,11 +42,13 @@ public class EventServiceImpl implements EventService {
     private final EventRepository eventRepository;
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final RequestRepository requestRepository;
 
     private final StatsClient statsClient;
 
+
     @Override
-    public EventFullDto getById(Long id, String requestUri) {
+    public EventFullDto getById(Long id) {
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new NoSuchEventException("Event with id=" + id + " not found."));
 
@@ -53,10 +58,10 @@ public class EventServiceImpl implements EventService {
         }
         UserShortDto initiator = UserMapper.userToUserShortDto(event.getInitiator());
         CategoryDto categoryDto = CategoryMapper.toCategoryDto(event.getCategory());
-        event.setViews(event.getViews() + 1);
-        eventRepository.save(event);
+        Long confirmedRequests = requestRepository.countByEventAndStatus(event, RequestStatus.CONFIRMED);
+        Integer views = getEventsViews(id);
 
-        return EventMapper.toEventFullDto(event, categoryDto, initiator);
+        return EventMapper.toEventFullDto(event, categoryDto, initiator, confirmedRequests, views);
     }
 
     @Override
@@ -67,10 +72,11 @@ public class EventServiceImpl implements EventService {
            throw new IllegalEventSortingException("Сортировать можно только по дате или по просмотрам.");
         }
         if (sort != null && Objects.equals(sort, "EVENT_DATE")) {
-            pageable = PageRequest.of((from) % size, size, Sort.by("eventDate").descending());;
+            pageable = PageRequest.of((from) % size, size, Sort.by("eventDate").descending());
         } else {
             pageable = PageMapper.getPagable(from, size);
         }
+
         if (onlyAvailable) {
             if (rangeStart == null || rangeEnd == null) {
                 events = eventRepository.searchAllAvailablePublishedEvents(text, paid, LocalDateTime.now(), categories, pageable);
@@ -85,16 +91,32 @@ public class EventServiceImpl implements EventService {
             }
         }
 
-        List<Event> viewsPlus1List = events.stream().collect(Collectors.toList());
-        for (Event event : viewsPlus1List) {
-            event.setViews(event.getViews() + 1);
+        List<ConfirmedRequests> confirmedRequests = requestRepository.getConfirmedRequestsByEvents(events.stream().collect(Collectors.toList()));
+        Map<Long, Long> confirmedRequestsMap = new HashMap<>(confirmedRequests.size());
+        List<Long> eventIds = events.stream()
+                .map(Event::getId)
+                .collect(Collectors.toList());
+        if (!confirmedRequests.isEmpty()) {
+            for (ConfirmedRequests cr : confirmedRequests) {
+                confirmedRequestsMap.put(cr.getEventId(), cr.getConfirmedRequests());
+            }
         }
-        eventRepository.saveAll(viewsPlus1List);
+        for (Long eventId : eventIds) {
+            if (!confirmedRequestsMap.containsKey(eventId)) {
+                confirmedRequestsMap.put(eventId, 0L);
+            }
+        }
 
-        List<EventShortDto> result = viewsPlus1List.stream()
+
+        Map<Long, Integer> viewsMap = getEventsViewsMap(eventIds);
+
+
+        List<EventShortDto> result = events.stream()
                 .map(event -> EventMapper.toEventShortDto(event,
                         CategoryMapper.toCategoryDto(event.getCategory()),
-                        UserMapper.userToUserShortDto(event.getInitiator())))
+                        UserMapper.userToUserShortDto(event.getInitiator()),
+                        confirmedRequestsMap.get(event.getId()),
+                        viewsMap.get(event.getId())))
                 .collect(Collectors.toList());
 
         if (Objects.equals(sort, "VIEWS")) {
@@ -125,12 +147,31 @@ public class EventServiceImpl implements EventService {
             events = eventRepository.searchAllEventsByUsersWithDate(users, eventStates, categories, rangeStart, rangeEnd, pageable);
         }
 
+        List<ConfirmedRequests> confirmedRequests = requestRepository.getConfirmedRequestsByEvents(events.stream().collect(Collectors.toList()));
+        Map<Long, Long> confirmedRequestsMap = new HashMap<>(confirmedRequests.size());
+        List<Long> eventIds = events.stream()
+                .map(Event::getId)
+                .collect(Collectors.toList());
+        if (!confirmedRequests.isEmpty()) {
+            for (ConfirmedRequests cr : confirmedRequests) {
+                confirmedRequestsMap.put(cr.getEventId(), cr.getConfirmedRequests());
+            }
+        }
+        for (Long eventId : eventIds) {
+            if (!confirmedRequestsMap.containsKey(eventId)) {
+                confirmedRequestsMap.put(eventId, 0L);
+            }
+        }
+        Map<Long, Integer> viewsMap = getEventsViewsMap(eventIds);
+
         List<EventFullDto> result = new ArrayList<>();
 
         for (Event event : events) {
             result.add(EventMapper.toEventFullDto(event,
                     CategoryMapper.toCategoryDto(event.getCategory()),
-                    UserMapper.userToUserShortDto(event.getInitiator())));
+                    UserMapper.userToUserShortDto(event.getInitiator()),
+                    confirmedRequestsMap.get(event.getId()),
+                    viewsMap.get(event.getId())));
         }
 
         return result;
@@ -164,20 +205,17 @@ public class EventServiceImpl implements EventService {
         if (eventDto.getCategory() != null) {
             category = categoryRepository.findById(eventDto.getCategory())
                     .orElseThrow(() -> new NoSuchCategoryException("Category with id=" + eventDto.getCategory() + " not found."));
+            event.setCategory(category);
 
         } else {
             category = event.getCategory();
         }
 
-        if (eventDto.getAnnotation() != null) {
+        if (eventDto.getAnnotation() != null && !event.getAnnotation().isBlank()) {
             event.setAnnotation(eventDto.getAnnotation());
         }
 
-        if (eventDto.getCategory() != null) {
-            event.setCategory(category);
-        }
-
-        if (eventDto.getDescription() != null) {
+        if (eventDto.getDescription() != null && !eventDto.getDescription().isBlank()) {
             event.setDescription(eventDto.getDescription());
         }
 
@@ -212,15 +250,18 @@ public class EventServiceImpl implements EventService {
             throw new IllegalEventStateException("Unknown event state");
         }
 
-        if (eventDto.getTitle() != null) {
+        if (eventDto.getTitle() != null && !eventDto.getTitle().isBlank()) {
             event.setTitle(eventDto.getTitle());
         }
 
-        Event savedEvent = eventRepository.save(event);
+        Long confirmedRequests = requestRepository.countByEventAndStatus(event, RequestStatus.CONFIRMED);
+        Integer views = getEventsViews(eventId);
 
-        return EventMapper.toEventFullDto(savedEvent,
+        return EventMapper.toEventFullDto(event,
                                           CategoryMapper.toCategoryDto(category),
-                                          UserMapper.userToUserShortDto(user));
+                                          UserMapper.userToUserShortDto(user),
+                                          confirmedRequests,
+                                          views);
 
     }
 
@@ -304,9 +345,14 @@ public class EventServiceImpl implements EventService {
 
         Event updatedEvent = eventRepository.save(event);
 
+        Long confirmedRequests = requestRepository.countByEventAndStatus(event, RequestStatus.CONFIRMED);
+        Integer views = getEventsViews(eventId);
+
         return EventMapper.toEventFullDto(updatedEvent,
-                CategoryMapper.toCategoryDto(category),
-                UserMapper.userToUserShortDto(event.getInitiator()));
+                                          CategoryMapper.toCategoryDto(category),
+                                          UserMapper.userToUserShortDto(event.getInitiator()),
+                                          confirmedRequests,
+                                          views);
 
 
     }
@@ -322,10 +368,29 @@ public class EventServiceImpl implements EventService {
 
         List<EventShortDto> result = new ArrayList<>();
 
+        List<ConfirmedRequests> confirmedRequests = requestRepository.getConfirmedRequestsByEvents(events.stream().collect(Collectors.toList()));
+        Map<Long, Long> confirmedRequestsMap = new HashMap<>(confirmedRequests.size());
+        List<Long> eventIds = events.stream()
+                .map(Event::getId)
+                .collect(Collectors.toList());
+        if (!confirmedRequests.isEmpty()) {
+            for (ConfirmedRequests cr : confirmedRequests) {
+                confirmedRequestsMap.put(cr.getEventId(), cr.getConfirmedRequests());
+            }
+        }
+        for (Long eventId : eventIds) {
+            if (!confirmedRequestsMap.containsKey(eventId)) {
+                confirmedRequestsMap.put(eventId, 0L);
+            }
+        }
+        Map<Long, Integer> viewsMap = getEventsViewsMap(eventIds);
+
         for (Event event : events) {
             result.add(EventMapper.toEventShortDto(event,
                     CategoryMapper.toCategoryDto(event.getCategory()),
-                    UserMapper.userToUserShortDto(event.getInitiator())));
+                    UserMapper.userToUserShortDto(event.getInitiator()),
+                    confirmedRequestsMap.get(event.getId()),
+                    viewsMap.get(event.getId())));
         }
 
         return result;
@@ -351,7 +416,9 @@ public class EventServiceImpl implements EventService {
 
         return EventMapper.toEventFullDto(event,
                                           CategoryMapper.toCategoryDto(category),
-                                          UserMapper.userToUserShortDto(initiator));
+                                          UserMapper.userToUserShortDto(initiator),
+                           0L,
+                                    0);
     }
 
     @Override
@@ -363,10 +430,61 @@ public class EventServiceImpl implements EventService {
             throw new NoSuchEventException("Event with id=" + eventId + " for user with id=" + userId + " not found.");
         }
 
+        Long confirmedRequests = requestRepository.countByEventAndStatus(event, RequestStatus.CONFIRMED);
+        Integer views = getEventsViews(eventId);
+
         return EventMapper.toEventFullDto(event,
                                           CategoryMapper.toCategoryDto(event.getCategory()),
-                                          UserMapper.userToUserShortDto(event.getInitiator()));
+                                          UserMapper.userToUserShortDto(event.getInitiator()),
+                                          confirmedRequests,
+                                          views);
     }
 
 
+    public Integer getEventsViews(Long eventId) {
+        String[] uris = {"/events/" + eventId};
+
+        ResponseEntity<Object> response = statsClient.getStats("2000-01-01 00:00:00",
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                uris, false);
+
+
+        List<LinkedHashMap<Object, Object>> stats = (List<LinkedHashMap<Object, Object>>) statsClient.getStats("2000-01-01 00:00:00",
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                uris, false).getBody();
+        if (stats != null && !stats.isEmpty()) {
+            return (Integer) stats.get(0).get("hits");
+        } else {
+            return 0;
+        }
+    }
+
+    public Map<Long, Integer> getEventsViewsMap(List<Long> eventsIds) {
+        List<String> uris = new ArrayList<>();
+        for (Long eventId: eventsIds) {
+            uris.add("/events/" + eventId);
+        }
+        String[] urisArray = uris.toArray(new String[uris.size()]);
+
+        List<LinkedHashMap<Object, Object>> stats = (List<LinkedHashMap<Object, Object>>) statsClient.getStats("2000-01-01 00:00:00",
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                urisArray, false).getBody();
+
+        Map<Long, Integer> eventViewsMap = new HashMap<>();
+        if (stats != null && !stats.isEmpty()) {
+            for (LinkedHashMap map : stats) {
+                String uri = (String) map.get("uri");
+                String[] urisAsArr = uri.split("/");
+                Long id = Long.parseLong(urisAsArr[urisAsArr.length - 1]);
+                eventViewsMap.put(id, (Integer) map.get("hits"));
+            }
+        }
+        for (Long id : eventsIds) {
+            if (!eventViewsMap.containsKey(id)) {
+                eventViewsMap.put(id, 0);
+            }
+        }
+
+        return eventViewsMap;
+    }
 }

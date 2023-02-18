@@ -6,8 +6,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import ru.practicum.ewm.model.location.Location;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
+import javax.validation.constraints.*;
 import java.time.LocalDateTime;
 
 @Data
@@ -15,19 +14,23 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class NewEventDto {
     @NotBlank
-    private String annotation; //required min = 20, max = 2000
+    @Size(min = 20, max = 2000)
+    private String annotation;
     @NotNull
     private long category; //required
     @NotBlank
-    private String description; //required min = 20, max 7000
+    @Size(min = 20, max = 7000)
+    private String description;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", shape = JsonFormat.Shape.STRING)
     @NotNull
     private LocalDateTime eventDate; //required
     @NotNull
     private Location location; //required
-    private boolean paid; //default = false
+    private Boolean paid; //default = false
+    @PositiveOrZero
     private long participantLimit; //required, default = 0 (no limit)
-    private boolean requestModeration; //required, default = true
+    private Boolean requestModeration; //required, default = true
     @NotBlank
+    @Size(min = 3, max = 120)
     private String title; //required min = 3, max =120
 }

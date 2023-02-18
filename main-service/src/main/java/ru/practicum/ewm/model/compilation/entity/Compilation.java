@@ -8,7 +8,7 @@ import ru.practicum.ewm.model.event.entity.Event;
 
 import javax.persistence.*;
 import javax.validation.constraints.Size;
-import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "compilations")
@@ -26,7 +26,7 @@ public class Compilation {
             joinColumns = {@JoinColumn(name = "COMPILATION_ID")},
             inverseJoinColumns = {@JoinColumn(name = "EVENT_ID")}
     )
-    private List<Event> events;
+    private Set<Event> events;
     @Column(name = "PINNED", nullable = false)
     private boolean pinned;
     @Column(name = "TITLE", nullable = false)

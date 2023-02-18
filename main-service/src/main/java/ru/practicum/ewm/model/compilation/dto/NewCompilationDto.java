@@ -6,16 +6,17 @@ import lombok.RequiredArgsConstructor;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import java.util.List;
+import javax.validation.constraints.Size;
+import java.util.Set;
 
 @Data
 @AllArgsConstructor
 @RequiredArgsConstructor
 public class NewCompilationDto {
+    private Set<Long> events;
     @NotNull
-    private List<Long> events;
-    @NotNull
-    private boolean pinned;
+    private Boolean pinned;
     @NotBlank
+    @Size(max = 128)
     private String title; //required
 }

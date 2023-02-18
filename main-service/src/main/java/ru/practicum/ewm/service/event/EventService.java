@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface EventService {
-    EventFullDto getById(Long id, String requestUri);
+    EventFullDto getById(Long id);
 
     List<EventShortDto> getAllShort(String text, List<Long> categories, boolean paid, LocalDateTime rangeStart, LocalDateTime rangeEnd, boolean onlyAvailable, String sort, int from, int size);
 

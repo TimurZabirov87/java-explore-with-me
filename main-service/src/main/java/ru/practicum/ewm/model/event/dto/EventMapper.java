@@ -14,42 +14,50 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class EventMapper {
 
-    public static EventFullDto toEventFullDto(Event event, CategoryDto categoryDto, UserShortDto initiator) {
+    public static EventFullDto toEventFullDto(Event event,
+                                              CategoryDto categoryDto,
+                                              UserShortDto initiator,
+                                              Long confirmedRequests,
+                                              Integer views) {
 
         return new EventFullDto(
                 event.getId(),
                 event.getAnnotation(),
                 categoryDto,
-                event.getConfirmedRequests(),
+                confirmedRequests,
                 event.getCreatedOn(),
                 event.getDescription(),
                 event.getEventDate(),
                 initiator,
                 event.getLocation(),
-                event.isPaid(),
+                event.getPaid(),
                 event.getParticipantLimit(),
                 event.getPublishedOn(),
-                event.isRequestModeration(),
+                event.getRequestModeration(),
                 event.getState(),
                 event.getTitle(),
-                event.getViews()
+                views
         );
 
     }
 
 
-    public static EventShortDto toEventShortDto(Event event, CategoryDto categoryDto, UserShortDto initiator) {
+    public static EventShortDto toEventShortDto(Event event,
+                                                CategoryDto categoryDto,
+                                                UserShortDto initiator,
+                                                Long confirmedRequests,
+                                                Integer views) {
 
         return new EventShortDto(
                 event.getId(),
                 event.getAnnotation(),
                 categoryDto,
-                event.getConfirmedRequests(),
+                confirmedRequests,
                 event.getEventDate(),
                 initiator,
-                event.isPaid(),
+                event.getPaid(),
                 event.getTitle(),
-                event.getViews());
+                views);
 
     }
 
@@ -59,19 +67,17 @@ public class EventMapper {
                 null,
                 newEventDto.getAnnotation(),
                 category,
-                0L,
                 LocalDateTime.now(),
                 newEventDto.getDescription(),
                 newEventDto.getEventDate(),
                 initiator,
                 newEventDto.getLocation(),
-                newEventDto.isPaid(),
+                newEventDto.getPaid(),
                 newEventDto.getParticipantLimit(),
                 null,
-                newEventDto.isRequestModeration(),
+                newEventDto.getRequestModeration(),
                 EventState.PENDING,
-                newEventDto.getTitle(),
-                0L
+                newEventDto.getTitle()
         );
     }
 

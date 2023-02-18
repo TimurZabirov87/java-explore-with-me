@@ -50,18 +50,16 @@ public class CategoryServiceImpl implements CategoryService {
         Category categoryToUpdate = categoryRepository.findById(catId)
                 .orElseThrow(() -> new NoSuchCategoryException("Category with id=" + catId + " not found."));
 
-        if (categoryDto.getName() != null) {
-           categoryToUpdate.setName(categoryDto.getName());
-        }
-        //todo имя категории должно быть уникальным добавить в схему.скуэль
-        return CategoryMapper.toCategoryDto(categoryRepository.save(categoryToUpdate));
+        categoryToUpdate.setName(categoryDto.getName());
+
+        return CategoryMapper.toCategoryDto(categoryToUpdate);
     }
 
     @Transactional
     @Override
     public CategoryDto create(NewCategoryDto newCategoryDto) {
         return CategoryMapper.toCategoryDto(categoryRepository.save(CategoryMapper.toCategory(newCategoryDto)));
-    } //todo имя категории должно быть уникальным добавить в схему.скуэль
+    }
 
     @Transactional
     @Override

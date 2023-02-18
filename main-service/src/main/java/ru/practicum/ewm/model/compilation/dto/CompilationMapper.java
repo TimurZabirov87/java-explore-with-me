@@ -2,34 +2,24 @@ package ru.practicum.ewm.model.compilation.dto;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import ru.practicum.ewm.model.category.dto.CategoryMapper;
 import ru.practicum.ewm.model.compilation.entity.Compilation;
-import ru.practicum.ewm.model.event.dto.EventMapper;
 import ru.practicum.ewm.model.event.dto.EventShortDto;
 import ru.practicum.ewm.model.event.entity.Event;
-import ru.practicum.ewm.model.user.dto.UserMapper;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class CompilationMapper {
 
-    public static CompilationDto toCompilationDto(Compilation compilation) {
+    public static CompilationDto toCompilationDto(Compilation compilation, Set<EventShortDto> eventShortDtoList) {
         if (compilation == null) {
             return null;
         }
 
-        List<EventShortDto> shorts = compilation.getEvents().stream()
-                .map(event -> EventMapper.toEventShortDto(event,
-                                                          CategoryMapper.toCategoryDto(event.getCategory()),
-                                                          UserMapper.userToUserShortDto(event.getInitiator())))
-                .collect(Collectors.toList());
-
         CompilationDto compilationDto = new CompilationDto();
 
         compilationDto.setId(compilation.getId());
-        compilationDto.setEvents(shorts);
+        compilationDto.setEvents(eventShortDtoList);
         compilationDto.setPinned(compilation.isPinned());
         compilationDto.setTitle(compilation.getTitle());
 
@@ -37,7 +27,7 @@ public class CompilationMapper {
     }
 
 
-    public static Compilation toCompilation(CompilationDto compilationDto, List<Event> eventsList) {
+    public static Compilation toCompilation(CompilationDto compilationDto, Set<Event> eventsList) {
         if (compilationDto == null) {
             return null;
         }
@@ -46,13 +36,13 @@ public class CompilationMapper {
 
         compilation.setId(compilationDto.getId());
         compilation.setEvents(eventsList);
-        compilation.setPinned(compilationDto.isPinned());
+        compilation.setPinned(compilationDto.getPinned());
         compilation.setTitle(compilationDto.getTitle());
 
         return compilation;
     }
 
-    public static Compilation toCompilation(NewCompilationDto compilationDto, List<Event> eventsList) {
+    public static Compilation toCompilation(NewCompilationDto compilationDto, Set<Event> eventsList) {
         if (compilationDto == null) {
             return null;
         }
@@ -61,7 +51,7 @@ public class CompilationMapper {
 
         compilation.setId(null);
         compilation.setEvents(eventsList);
-        compilation.setPinned(compilationDto.isPinned());
+        compilation.setPinned(compilationDto.getPinned());
         compilation.setTitle(compilationDto.getTitle());
 
         return compilation;

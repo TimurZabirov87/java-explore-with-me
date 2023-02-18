@@ -1,7 +1,5 @@
 package ru.practicum.ewm.exceptions;
 
-import lombok.extern.slf4j.Slf4j;
-import org.codehaus.plexus.util.ExceptionUtils;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
@@ -27,7 +25,6 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 
 @ControllerAdvice
-@Slf4j
 public class RestExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler({ NoSuchUserException.class,
@@ -111,7 +108,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
 
         ApiError apiError = new ApiError(status.name(),"Method Argument Not Valid", ex.getMessage());
 
-        return new ResponseEntity<>(apiError,status);
+        return new ResponseEntity<>(apiError, BAD_REQUEST);
     }
 
     @Override
@@ -154,7 +151,6 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     protected ResponseEntity<Object> handleAllExceptions(Exception ex, WebRequest request) {
-        log.error(ExceptionUtils.getStackTrace(ex));
         ApiError apiError = new ApiError("INTERNAL_SERVER_ERROR","Internal Exception", ex.getMessage());
 
         return new ResponseEntity<>(apiError, HttpStatus.INTERNAL_SERVER_ERROR);

@@ -69,21 +69,22 @@ public class RequestServiceImpl implements RequestService {
             throw new NoPendingRequestConfirmingException("Request must have status PENDING");
         }
 
+        Long confirmedRequests = requestRepository.countByEventAndStatus(event, RequestStatus.CONFIRMED);
+
         //если для события лимит заявок равен 0 или отключена пре-модерация заявок, то подтверждение заявок не требуется
-        if (!event.isRequestModeration() || event.getParticipantLimit() == 0) {
+        if (!event.getRequestModeration() || event.getParticipantLimit() == 0) {
             for (Request request1 : requests) {
                 request1.setStatus(RequestStatus.CONFIRMED);
             }
             result.getConfirmedRequests().addAll(requests.stream().map(RequestMapper::toRequestDto).collect(Collectors.toList()));
             requestRepository.saveAll(requests);
-            event.setConfirmedRequests(event.getConfirmedRequests() + confirmed.size());
-            eventRepository.save(event);
+
             return result;
         }
 
         //нельзя подтвердить заявку, если уже достигнут лимит по заявкам на данное событие (Ожидается код ошибки 409)
         if (event.getParticipantLimit() != 0 &&
-                ((event.getConfirmedRequests() + request.getRequestIds().size()) > event.getParticipantLimit()) &&
+                ((confirmedRequests + request.getRequestIds().size()) > event.getParticipantLimit()) &&
                 request.getStatus().equals(RequestStatus.CONFIRMED)) {
             throw new LimitOfRequestsReachedException("The participant limit has been reached");
         }
@@ -91,7 +92,7 @@ public class RequestServiceImpl implements RequestService {
         //если при подтверждении данной заявки, лимит заявок для события исчерпан,
         // то все неподтверждённые заявки необходимо отклонить
         if (event.getParticipantLimit() != 0 &&
-                ((event.getConfirmedRequests() + request.getRequestIds().size()) == event.getParticipantLimit()) &&
+                ((confirmedRequests + request.getRequestIds().size()) == event.getParticipantLimit()) &&
                 request.getStatus().equals(RequestStatus.CONFIRMED)) {
             for (Request request1 : requests) {
                 request1.setStatus(RequestStatus.CONFIRMED);
@@ -99,8 +100,7 @@ public class RequestServiceImpl implements RequestService {
             confirmed.addAll(requests.stream().map(RequestMapper::toRequestDto).collect(Collectors.toList()));
             requestRepository.saveAll(requests);
             result.setConfirmedRequests(confirmed);
-            event.setConfirmedRequests(event.getConfirmedRequests() + confirmed.size());
-            eventRepository.save(event);
+
             List<Request> otherPendingRequests = requestRepository.findAllByEventAndStatus(event, RequestStatus.PENDING);
             for (Request request2 : otherPendingRequests) {
                 request2.setStatus(RequestStatus.REJECTED);
@@ -119,8 +119,6 @@ public class RequestServiceImpl implements RequestService {
             confirmed.addAll(requests.stream().map(RequestMapper::toRequestDto).collect(Collectors.toList()));
             requestRepository.saveAll(requests);
             result.setConfirmedRequests(confirmed);
-            event.setConfirmedRequests(event.getConfirmedRequests() + confirmed.size());
-            eventRepository.save(event);
         } else if (request.getStatus().equals(RequestStatus.REJECTED)) {
             for (Request request1 : requests) {
                 request1.setStatus(RequestStatus.REJECTED);
@@ -161,11 +159,14 @@ public class RequestServiceImpl implements RequestService {
 
         //нельзя участвовать в неопубликованном событии (Ожидается код ошибки 409)
         if (event.getPublishedOn() == null) {
-            throw new RequestForUnpublishedEventException("Event with id=" + " is unpublished");
+            throw new RequestForUnpublishedEventException("Event with id= " + eventId + " is unpublished");
         }
 
+        Long confirmedRequests = requestRepository.countByEventAndStatus(event, RequestStatus.CONFIRMED);
+
         //если у события достигнут лимит запросов на участие - необходимо вернуть ошибку (Ожидается код ошибки 409)
-        if (event.getParticipantLimit() != 0 && event.getParticipantLimit() == event.getConfirmedRequests()) {
+        long requestCount = requestRepository.findByEvent(event).size();
+        if (event.getParticipantLimit() != 0 && event.getParticipantLimit() == confirmedRequests) {
             throw new LimitOfRequestsReachedException("The participant limit has been reached");
         }
         //нельзя добавить повторный запрос (Ожидается код ошибки 409)
@@ -178,10 +179,8 @@ public class RequestServiceImpl implements RequestService {
                 requester,
                 RequestStatus.PENDING);
         //если для события отключена пре-модерация запросов на участие, то запрос должен автоматически перейти в состояние подтвержденного
-        if (!event.isRequestModeration()) {
+        if (!event.getRequestModeration()) {
             request.setStatus(RequestStatus.CONFIRMED);
-            event.setConfirmedRequests(event.getConfirmedRequests() + 1);
-            eventRepository.save(event);
         }
         return RequestMapper.toRequestDto(requestRepository.save(request));
 
@@ -199,12 +198,6 @@ public class RequestServiceImpl implements RequestService {
 
         if (!Objects.equals(request.getRequester().getId(), requester.getId())) {
             throw new NoSuchParticipationRequestException("Request with id=" + requestId + " for user with id=" + userId + " not found.");
-        }
-
-        if (request.getStatus().equals(RequestStatus.CONFIRMED)) {
-            Event event = request.getEvent();
-            event.setConfirmedRequests(event.getConfirmedRequests() - 1);
-            eventRepository.save(event);
         }
 
         request.setStatus(RequestStatus.CANCELED);

@@ -19,7 +19,6 @@ import java.time.LocalDateTime;
 @Setter
 @AllArgsConstructor
 @RequiredArgsConstructor
-
 public class Event {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,8 +29,6 @@ public class Event {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "CATEGORY_ID")
     private Category category;
-    @Column(name = "CONFIRMED_REQUESTS")
-    private long confirmedRequests;
     @Column(name = "CREATED_ON", nullable = false)
     private LocalDateTime createdOn;
     @Column(name = "DESCRIPTION", nullable = false)
@@ -45,18 +42,16 @@ public class Event {
     @Embedded
     private Location location;
     @Column(name = "PAID", nullable = false)
-    private boolean paid;
+    private Boolean paid;
     @Column(name = "PARTICIPANT_LIMIT", nullable = false)
     private long participantLimit;
     @Column(name = "PUBLISHED_ON")
     private LocalDateTime publishedOn;
     @Column(name = "REQUEST_MODERATION", nullable = false)
-    private boolean requestModeration;
+    private Boolean requestModeration;
     @Enumerated(EnumType.STRING)
     private EventState state;
     @Column(name = "TITLE", nullable = false)
     @Size(min = 1, max = 128)
     private String title;
-    @Column(name = "VIEWS")
-    private Long views;
 }

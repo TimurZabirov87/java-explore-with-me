@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
+import javax.validation.constraints.Size;
 import java.util.Set;
 
 @Data
@@ -11,6 +12,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UpdateCompilationRequest {
     private Set<Long> events;
-    private boolean pinned;
+    private Boolean pinned;
+    @Size(max = 128)
     private String title;
 }
