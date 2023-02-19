@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.*;
 import ru.practicum.ewm.model.category.dto.CategoryDto;
 import ru.practicum.ewm.model.category.dto.NewCategoryDto;
 import ru.practicum.ewm.service.category.CategoryService;
-import ru.practicum.ewm.service.user.UserService;
 
 import javax.validation.Valid;
 
@@ -18,7 +17,6 @@ import javax.validation.Valid;
 @Validated
 @RequestMapping(path = "/admin/categories")
 public class AdminCategoriesController {
-    private final UserService userService;
     private final CategoryService categoryService;
 
     //categories

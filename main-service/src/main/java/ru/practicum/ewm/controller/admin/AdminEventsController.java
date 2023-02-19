@@ -3,7 +3,6 @@ package ru.practicum.ewm.controller.admin;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.ewm.model.event.dto.EventFullDto;
 import ru.practicum.ewm.model.event.dto.UpdateEventAdminRequest;
@@ -17,7 +16,6 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @Slf4j
-@Validated
 @RequestMapping(path = "/admin/events")
 public class AdminEventsController {
     private final EventService eventService;

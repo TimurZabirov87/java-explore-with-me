@@ -21,23 +21,6 @@ public interface EventRepository extends JpaRepository<Event, Long> {
 
     Page<Event> findAllByInitiator(User initiator, Pageable pageable);
 
-//    @Query(" select e from Event e " +
-//            "where (upper(e.annotation) like upper(concat('%', :text, '%')) " +
-//            "or upper(e.description) like upper(concat('%', :text, '%')) " +
-//            "or :text is null) " +
-//            "and (e.category.id in (:categories) or :categories is null)" +
-//            "and e.paid = :paid or :paid = false " +
-//            "and e.eventDate between :rangeStart and :rangeEnd " +
-//            "and e.confirmedRequests < e.participantLimit " +
-//            "and e.state = 'PUBLISHED'")
-//    Page<Event> searchAllAvailablePublishedEventsWithDate(
-//                                                         @Param("text") String text,
-//                                                         @Param("paid") Boolean paid,
-//                                                         @Param("rangeStart") LocalDateTime rangeStart,
-//                                                         @Param("rangeEnd") LocalDateTime rangeEnd,
-//                                                         @Param("categories") List<Long> categories,
-//                                                         Pageable pageable);
-
     @Query(" SELECT e.id, " +
             "e.annotation, " +
             "e.category, " +
@@ -160,26 +143,5 @@ public interface EventRepository extends JpaRepository<Event, Long> {
                                  @Param("now") LocalDateTime now,
                                  Pageable pageable);
 
-//    SELECT e.id,
-//    e.annotation,
-//    e.CATEGORY_ID,
-//    e.CONFIRMED_REQUESTS,
-//    e.CREATED_ON,
-//    e.DESCRIPTION,
-//    e.EVENT_DATE,
-//    e.INITIATOR_ID,
-//    e.LON,
-//    e.LAT,
-//    e.PAID,
-//    e.PARTICIPANT_LIMIT,
-//    e.PUBLISHED_ON,
-//    e.REQUEST_MODERATION,
-//    e.state,
-//    e.TITLE
-//    FROM events e
-//    JOIN requests r on e.id = r.event_id
-//    WHERE e.participant_limit < 200
-//    GROUP BY e.id, e.annotation, e.CATEGORY_ID, e.CONFIRMED_REQUESTS, e.CREATED_ON, e.DESCRIPTION, e.EVENT_DATE, e.INITIATOR_ID, e.LON, e.LAT, e.PAID, e.PARTICIPANT_LIMIT, e.PUBLISHED_ON, e.REQUEST_MODERATION, e.state, e.TITLE
-//    HAVING count(r.status = 'confirmed') < e.participant_limit
 
 }

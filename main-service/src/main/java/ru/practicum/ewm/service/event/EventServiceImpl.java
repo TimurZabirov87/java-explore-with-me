@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.ewm.StatsClient;
 import ru.practicum.ewm.exceptions.*;
-import ru.practicum.ewm.model.category.dto.CategoryDto;
 import ru.practicum.ewm.model.category.dto.CategoryMapper;
 import ru.practicum.ewm.model.category.entity.Category;
 import ru.practicum.ewm.model.event.EventState;
@@ -18,10 +17,10 @@ import ru.practicum.ewm.model.event.EventStateActionAdmin;
 import ru.practicum.ewm.model.event.SortShortDtoByViewsComparator;
 import ru.practicum.ewm.model.event.dto.*;
 import ru.practicum.ewm.model.event.entity.Event;
+import ru.practicum.ewm.model.location.Location;
 import ru.practicum.ewm.model.participation.ConfirmedRequests;
 import ru.practicum.ewm.model.participation.RequestStatus;
 import ru.practicum.ewm.model.user.dto.UserMapper;
-import ru.practicum.ewm.model.user.dto.UserShortDto;
 import ru.practicum.ewm.model.user.entity.User;
 import ru.practicum.ewm.repository.CategoryRepository;
 import ru.practicum.ewm.repository.EventRepository;
@@ -56,12 +55,8 @@ public class EventServiceImpl implements EventService {
         if (event.getPublishedOn() == null) {
             throw new NoSuchEventException("Event with id=" + id + " not found.");
         }
-        UserShortDto initiator = UserMapper.userToUserShortDto(event.getInitiator());
-        CategoryDto categoryDto = CategoryMapper.toCategoryDto(event.getCategory());
-        Long confirmedRequests = requestRepository.countByEventAndStatus(event, RequestStatus.CONFIRMED);
-        Integer views = getEventsViews(id);
 
-        return EventMapper.toEventFullDto(event, categoryDto, initiator, confirmedRequests, views);
+        return getEventFullDto(event);
     }
 
     @Override
@@ -91,33 +86,7 @@ public class EventServiceImpl implements EventService {
             }
         }
 
-        List<ConfirmedRequests> confirmedRequests = requestRepository.getConfirmedRequestsByEvents(events.stream().collect(Collectors.toList()));
-        Map<Long, Long> confirmedRequestsMap = new HashMap<>(confirmedRequests.size());
-        List<Long> eventIds = events.stream()
-                .map(Event::getId)
-                .collect(Collectors.toList());
-        if (!confirmedRequests.isEmpty()) {
-            for (ConfirmedRequests cr : confirmedRequests) {
-                confirmedRequestsMap.put(cr.getEventId(), cr.getConfirmedRequests());
-            }
-        }
-        for (Long eventId : eventIds) {
-            if (!confirmedRequestsMap.containsKey(eventId)) {
-                confirmedRequestsMap.put(eventId, 0L);
-            }
-        }
-
-
-        Map<Long, Integer> viewsMap = getEventsViewsMap(eventIds);
-
-
-        List<EventShortDto> result = events.stream()
-                .map(event -> EventMapper.toEventShortDto(event,
-                        CategoryMapper.toCategoryDto(event.getCategory()),
-                        UserMapper.userToUserShortDto(event.getInitiator()),
-                        confirmedRequestsMap.get(event.getId()),
-                        viewsMap.get(event.getId())))
-                .collect(Collectors.toList());
+        List<EventShortDto> result = getEventsShorts(events.stream().collect(Collectors.toList()));
 
         if (Objects.equals(sort, "VIEWS")) {
             return result.stream()
@@ -147,34 +116,7 @@ public class EventServiceImpl implements EventService {
             events = eventRepository.searchAllEventsByUsersWithDate(users, eventStates, categories, rangeStart, rangeEnd, pageable);
         }
 
-        List<ConfirmedRequests> confirmedRequests = requestRepository.getConfirmedRequestsByEvents(events.stream().collect(Collectors.toList()));
-        Map<Long, Long> confirmedRequestsMap = new HashMap<>(confirmedRequests.size());
-        List<Long> eventIds = events.stream()
-                .map(Event::getId)
-                .collect(Collectors.toList());
-        if (!confirmedRequests.isEmpty()) {
-            for (ConfirmedRequests cr : confirmedRequests) {
-                confirmedRequestsMap.put(cr.getEventId(), cr.getConfirmedRequests());
-            }
-        }
-        for (Long eventId : eventIds) {
-            if (!confirmedRequestsMap.containsKey(eventId)) {
-                confirmedRequestsMap.put(eventId, 0L);
-            }
-        }
-        Map<Long, Integer> viewsMap = getEventsViewsMap(eventIds);
-
-        List<EventFullDto> result = new ArrayList<>();
-
-        for (Event event : events) {
-            result.add(EventMapper.toEventFullDto(event,
-                    CategoryMapper.toCategoryDto(event.getCategory()),
-                    UserMapper.userToUserShortDto(event.getInitiator()),
-                    confirmedRequestsMap.get(event.getId()),
-                    viewsMap.get(event.getId())));
-        }
-
-        return result;
+        return getEventsFulls(events.stream().collect(Collectors.toList()));
     }
 
     @Transactional
@@ -215,29 +157,15 @@ public class EventServiceImpl implements EventService {
             event.setAnnotation(eventDto.getAnnotation());
         }
 
+        if (eventDto.getCategory() != null) {
+            event.setCategory(category);
+        }
+
         if (eventDto.getDescription() != null && !eventDto.getDescription().isBlank()) {
             event.setDescription(eventDto.getDescription());
         }
 
-        if (eventDto.getEventDate() != null) {
-            event.setEventDate(eventDto.getEventDate());
-        }
-
-        if (eventDto.getLocation() != null) {
-            event.setLocation(eventDto.getLocation());
-        }
-
-        if (eventDto.getPaid() != null) {
-            event.setPaid(eventDto.getPaid());
-        }
-
-        if (eventDto.getParticipantLimit() != null) {
-            event.setParticipantLimit(eventDto.getParticipantLimit());
-        }
-
-        if (eventDto.getRequestModeration() != null) {
-            event.setRequestModeration(eventDto.getRequestModeration());
-        }
+        updateEvent(event, eventDto.getEventDate(), eventDto.getLocation(), eventDto.getPaid(), eventDto.getParticipantLimit(), eventDto.getRequestModeration(), eventDto);
 
         switch (eventDto.getStateAction()) {
             case CANCEL_REVIEW:
@@ -254,16 +182,11 @@ public class EventServiceImpl implements EventService {
             event.setTitle(eventDto.getTitle());
         }
 
-        Long confirmedRequests = requestRepository.countByEventAndStatus(event, RequestStatus.CONFIRMED);
-        Integer views = getEventsViews(eventId);
-
-        return EventMapper.toEventFullDto(event,
-                                          CategoryMapper.toCategoryDto(category),
-                                          UserMapper.userToUserShortDto(user),
-                                          confirmedRequests,
-                                          views);
+        return getEventFullDto(event);
 
     }
+
+
 
     @Transactional
     @Override
@@ -307,25 +230,7 @@ public class EventServiceImpl implements EventService {
             event.setDescription(eventDto.getDescription());
         }
 
-        if (eventDto.getEventDate() != null) {
-            event.setEventDate(eventDto.getEventDate());
-        }
-
-        if (eventDto.getLocation() != null) {
-            event.setLocation(eventDto.getLocation());
-        }
-
-        if (eventDto.getPaid() != null) {
-            event.setPaid(eventDto.getPaid());
-        }
-
-        if (eventDto.getParticipantLimit() != null) {
-            event.setParticipantLimit(eventDto.getParticipantLimit());
-        }
-
-        if (eventDto.getRequestModeration() != null) {
-            event.setRequestModeration(eventDto.getRequestModeration());
-        }
+        updateEvent(event, eventDto.getEventDate(), eventDto.getLocation(), eventDto.getPaid(), eventDto.getParticipantLimit(), eventDto.getRequestModeration(), eventDto);
 
         switch (eventDto.getStateAction()) {
             case PUBLISH_EVENT:
@@ -345,14 +250,7 @@ public class EventServiceImpl implements EventService {
 
         Event updatedEvent = eventRepository.save(event);
 
-        Long confirmedRequests = requestRepository.countByEventAndStatus(event, RequestStatus.CONFIRMED);
-        Integer views = getEventsViews(eventId);
-
-        return EventMapper.toEventFullDto(updatedEvent,
-                                          CategoryMapper.toCategoryDto(category),
-                                          UserMapper.userToUserShortDto(event.getInitiator()),
-                                          confirmedRequests,
-                                          views);
+        return getEventFullDto(updatedEvent);
 
 
     }
@@ -366,34 +264,8 @@ public class EventServiceImpl implements EventService {
 
         List<Event> events = eventRepository.findAllByInitiator(initiator, pageable).stream().collect(Collectors.toList());
 
-        List<EventShortDto> result = new ArrayList<>();
+        return getEventsShorts(events);
 
-        List<ConfirmedRequests> confirmedRequests = requestRepository.getConfirmedRequestsByEvents(events.stream().collect(Collectors.toList()));
-        Map<Long, Long> confirmedRequestsMap = new HashMap<>(confirmedRequests.size());
-        List<Long> eventIds = events.stream()
-                .map(Event::getId)
-                .collect(Collectors.toList());
-        if (!confirmedRequests.isEmpty()) {
-            for (ConfirmedRequests cr : confirmedRequests) {
-                confirmedRequestsMap.put(cr.getEventId(), cr.getConfirmedRequests());
-            }
-        }
-        for (Long eventId : eventIds) {
-            if (!confirmedRequestsMap.containsKey(eventId)) {
-                confirmedRequestsMap.put(eventId, 0L);
-            }
-        }
-        Map<Long, Integer> viewsMap = getEventsViewsMap(eventIds);
-
-        for (Event event : events) {
-            result.add(EventMapper.toEventShortDto(event,
-                    CategoryMapper.toCategoryDto(event.getCategory()),
-                    UserMapper.userToUserShortDto(event.getInitiator()),
-                    confirmedRequestsMap.get(event.getId()),
-                    viewsMap.get(event.getId())));
-        }
-
-        return result;
     }
 
     @Transactional
@@ -430,14 +302,7 @@ public class EventServiceImpl implements EventService {
             throw new NoSuchEventException("Event with id=" + eventId + " for user with id=" + userId + " not found.");
         }
 
-        Long confirmedRequests = requestRepository.countByEventAndStatus(event, RequestStatus.CONFIRMED);
-        Integer views = getEventsViews(eventId);
-
-        return EventMapper.toEventFullDto(event,
-                                          CategoryMapper.toCategoryDto(event.getCategory()),
-                                          UserMapper.userToUserShortDto(event.getInitiator()),
-                                          confirmedRequests,
-                                          views);
+        return getEventFullDto(event);
     }
 
 
@@ -487,4 +352,80 @@ public class EventServiceImpl implements EventService {
 
         return eventViewsMap;
     }
+
+    private List<EventShortDto> getEventsShorts(List<Event> eventSet) {
+        List<Long> eventIds = eventSet.stream()
+                .map(Event::getId)
+                .collect(Collectors.toList());
+
+        Map<Long, Long> confirmedRequests =
+                requestRepository.getConfirmedRequestsByEvents(new ArrayList<>(eventSet))
+                        .stream().collect(Collectors.toMap(ConfirmedRequests::getEventId,
+                                ConfirmedRequests::getConfirmedRequests));
+        Map<Long, Integer> viewsMap = getEventsViewsMap(new ArrayList<>(eventIds));
+
+        return eventSet.stream()
+                .map(event -> EventMapper.toEventShortDto(event,
+                        CategoryMapper.toCategoryDto(event.getCategory()),
+                        UserMapper.userToUserShortDto(event.getInitiator()),
+                        confirmedRequests.getOrDefault(event.getId(), 0L),
+                        viewsMap.get(event.getId())))
+                .collect(Collectors.toList());
+    }
+
+    private List<EventFullDto> getEventsFulls(List<Event> events) {
+        List<Long> eventIds = events.stream()
+                .map(Event::getId)
+                .collect(Collectors.toList());
+
+        Map<Long, Long> confirmedRequests =
+                requestRepository.getConfirmedRequestsByEvents(new ArrayList<>(events))
+                        .stream().collect(Collectors.toMap(ConfirmedRequests::getEventId,
+                                ConfirmedRequests::getConfirmedRequests));
+        Map<Long, Integer> viewsMap = getEventsViewsMap(new ArrayList<>(eventIds));
+
+        return events.stream()
+                .map(event -> EventMapper.toEventFullDto(event,
+                        CategoryMapper.toCategoryDto(event.getCategory()),
+                        UserMapper.userToUserShortDto(event.getInitiator()),
+                        confirmedRequests.getOrDefault(event.getId(), 0L),
+                        viewsMap.get(event.getId())))
+                .collect(Collectors.toList());
+
+    }
+
+    private EventFullDto getEventFullDto(Event event) {
+        Long confirmedRequests = requestRepository.countByEventAndStatus(event, RequestStatus.CONFIRMED);
+        Integer views = getEventsViews(event.getId());
+
+        return EventMapper.toEventFullDto(event,
+                CategoryMapper.toCategoryDto(event.getCategory()),
+                UserMapper.userToUserShortDto(event.getInitiator()),
+                confirmedRequests,
+                views);
+    }
+
+    private void updateEvent(Event event, LocalDateTime eventDate, Location location, Boolean paid, Long participantLimit, Boolean requestModeration, UpdateEvent eventDto) {
+
+        if (eventDate != null) {
+            event.setEventDate(eventDate);
+        }
+
+        if (location != null) {
+            event.setLocation(location);
+        }
+
+        if (paid != null) {
+            event.setPaid(paid);
+        }
+
+        if (participantLimit != null) {
+            event.setParticipantLimit(participantLimit);
+        }
+
+        if (requestModeration != null) {
+            event.setRequestModeration(requestModeration);
+        }
+    }
+
 }

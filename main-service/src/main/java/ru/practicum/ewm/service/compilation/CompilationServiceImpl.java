@@ -52,32 +52,7 @@ public class CompilationServiceImpl implements CompilationService {
 
             if (compilation.getEvents() != null && !compilation.getEvents().isEmpty()) {
                 Set<Event> eventSet = compilation.getEvents();
-                List<ConfirmedRequests> confirmedRequests =
-                        requestRepository.getConfirmedRequestsByEvents(eventSet.stream().collect(Collectors.toList()));
-                Map<Long, Long> confirmedRequestsMap = new HashMap<>(confirmedRequests.size());
-                List<Long> eventIds = eventSet.stream()
-                        .map(Event::getId)
-                        .collect(Collectors.toList());
-                if (confirmedRequests != null && !confirmedRequests.isEmpty()) {
-                    for (ConfirmedRequests cr : confirmedRequests) {
-                        confirmedRequestsMap.put(cr.getEventId(), cr.getConfirmedRequests());
-                    }
-                }
-                for (Long eventId : eventIds) {
-                    if (!confirmedRequestsMap.containsKey(eventId)) {
-                        confirmedRequestsMap.put(eventId, 0L);
-                    }
-                }
-
-                Map<Long, Integer> viewsMap = getEventsViewsMap(eventIds);
-
-                eventShortDtos = eventSet.stream()
-                        .map(event -> EventMapper.toEventShortDto(event,
-                                CategoryMapper.toCategoryDto(event.getCategory()),
-                                UserMapper.userToUserShortDto(event.getInitiator()),
-                                confirmedRequestsMap.get(event.getId()),
-                                viewsMap.get(event.getId())))
-                        .collect(Collectors.toSet());
+                eventShortDtos = getEventsShorts(eventSet);
             }
             result.add(CompilationMapper.toCompilationDto(compilation, eventShortDtos));
         }
@@ -94,32 +69,7 @@ public class CompilationServiceImpl implements CompilationService {
 
         if (compilation.getEvents() != null && !compilation.getEvents().isEmpty()) {
             Set<Event> eventSet = compilation.getEvents();
-            List<ConfirmedRequests> confirmedRequests =
-                    requestRepository.getConfirmedRequestsByEvents(eventSet.stream().collect(Collectors.toList()));
-            Map<Long, Long> confirmedRequestsMap = new HashMap<>(confirmedRequests.size());
-            List<Long> eventIds = eventSet.stream()
-                    .map(Event::getId)
-                    .collect(Collectors.toList());
-            if (confirmedRequests != null && !confirmedRequests.isEmpty()) {
-                for (ConfirmedRequests cr : confirmedRequests) {
-                    confirmedRequestsMap.put(cr.getEventId(), cr.getConfirmedRequests());
-                }
-            }
-            for (Long eventId : eventIds) {
-                if (!confirmedRequestsMap.containsKey(eventId)) {
-                    confirmedRequestsMap.put(eventId, 0L);
-                }
-            }
-
-            Map<Long, Integer> viewsMap = getEventsViewsMap(eventIds);
-
-            eventShortDtos = eventSet.stream()
-                    .map(event -> EventMapper.toEventShortDto(event,
-                            CategoryMapper.toCategoryDto(event.getCategory()),
-                            UserMapper.userToUserShortDto(event.getInitiator()),
-                            confirmedRequestsMap.get(event.getId()),
-                            viewsMap.get(event.getId())))
-                    .collect(Collectors.toSet());
+            eventShortDtos = getEventsShorts(eventSet);
         }
 
         return CompilationMapper.toCompilationDto(compilation, eventShortDtos);
@@ -131,43 +81,22 @@ public class CompilationServiceImpl implements CompilationService {
     public CompilationDto create(NewCompilationDto compilationDto) {
 
         Set<Long> eventIds = compilationDto.getEvents();
-        Set<Event> eventList = new HashSet<>();
+        Set<Event> eventSet = new HashSet<>();
         Set<EventShortDto> eventShortDtos = new HashSet<>();
 
         if (eventIds.size() > 0) {
-            eventList = eventRepository.findAllById(eventIds).stream().collect(Collectors.toSet());
-            if (eventIds.size() == eventList.size()) {
-                List<ConfirmedRequests> confirmedRequests = requestRepository.getConfirmedRequestsByEvents(eventList.stream().collect(Collectors.toList()));
-                Map<Long, Long> confirmedRequestsMap = new HashMap<>(confirmedRequests.size());
-
-                if (confirmedRequests != null && !confirmedRequests.isEmpty()) {
-                    for (ConfirmedRequests cr : confirmedRequests) {
-                        confirmedRequestsMap.put(cr.getEventId(), cr.getConfirmedRequests());
-                    }
-                }
-                for (Long eventId : eventIds) {
-                    if (!confirmedRequestsMap.containsKey(eventId)) {
-                        confirmedRequestsMap.put(eventId, 0L);
-                    }
-                }
-                Map<Long, Integer> viewsMap = getEventsViewsMap(eventIds.stream().collect(Collectors.toList()));
-
-                eventShortDtos = eventList.stream()
-                        .map(event -> EventMapper.toEventShortDto(event,
-                                CategoryMapper.toCategoryDto(event.getCategory()),
-                                UserMapper.userToUserShortDto(event.getInitiator()),
-                                confirmedRequestsMap.get(event.getId()),
-                                viewsMap.get(event.getId())))
-                        .collect(Collectors.toSet());
+            eventSet = new HashSet<>(eventRepository.findAllById(eventIds));
+            if (eventIds.size() == eventSet.size()) {
+                eventShortDtos = getEventsShorts(eventSet);
             } else {
-                List<Long> foundedEventsIds = eventList.stream().map(Event::getId).collect(Collectors.toList());
+                List<Long> foundedEventsIds = eventSet.stream().map(Event::getId).collect(Collectors.toList());
                 List<Long> notFoundedEventsIds = new ArrayList<>(eventIds);
                 notFoundedEventsIds.removeAll(foundedEventsIds);
                 throw new NoSuchEventException("Event with ids=" + notFoundedEventsIds + " not found.");
             }
         }
 
-        Compilation compilationToSave = CompilationMapper.toCompilation(compilationDto, eventList);
+        Compilation compilationToSave = CompilationMapper.toCompilation(compilationDto, eventSet);
         return CompilationMapper.toCompilationDto(compilationRepository.save(compilationToSave), eventShortDtos);
 
     }
@@ -185,19 +114,19 @@ public class CompilationServiceImpl implements CompilationService {
     public CompilationDto updateCompilation(long compilationId, UpdateCompilationRequest updateCompilationRequest) {
         Compilation compilationToUpdate = compilationRepository.findById(compilationId)
                 .orElseThrow(() -> new NoSuchCompilationException("Compilation with id=" + compilationId + " not found."));
-        Set<Event> eventList = new HashSet<>();
+        Set<Event> eventSet;
         if (updateCompilationRequest.getEvents() != null && !updateCompilationRequest.getEvents().isEmpty()) {
-            eventList = eventRepository.findAllById(updateCompilationRequest.getEvents()).stream().collect(Collectors.toSet());
-            if (updateCompilationRequest.getEvents().size() == eventList.size()) {
-                compilationToUpdate.setEvents(eventList);
+            eventSet = new HashSet<>(eventRepository.findAllById(updateCompilationRequest.getEvents()));
+            if (updateCompilationRequest.getEvents().size() == eventSet.size()) {
+                compilationToUpdate.setEvents(eventSet);
             } else {
-                List<Long> foundedEventsIds = eventList.stream().map(Event::getId).collect(Collectors.toList());
+                List<Long> foundedEventsIds = eventSet.stream().map(Event::getId).collect(Collectors.toList());
                 List<Long> notFoundedEventsIds = new ArrayList<>(updateCompilationRequest.getEvents());
                 notFoundedEventsIds.removeAll(foundedEventsIds);
                 throw new NoSuchEventException("Event with ids=" + notFoundedEventsIds + " not found.");
             }
-
         }
+        eventSet = compilationToUpdate.getEvents();
         if (updateCompilationRequest.getTitle() != null && !updateCompilationRequest.getTitle().isBlank()) {
             compilationToUpdate.setTitle(updateCompilationRequest.getTitle());
         }
@@ -205,33 +134,7 @@ public class CompilationServiceImpl implements CompilationService {
             compilationToUpdate.setPinned(updateCompilationRequest.getPinned());
         }
 
-        List<ConfirmedRequests> confirmedRequests = requestRepository.getConfirmedRequestsByEvents(eventList.stream().collect(Collectors.toList()));
-        Map<Long, Long> confirmedRequestsMap = new HashMap<>(confirmedRequests.size());
-        List<Long> eventIds = compilationToUpdate.getEvents().stream().map(Event::getId).collect(Collectors.toList());
-
-        if (confirmedRequests != null && !confirmedRequests.isEmpty()) {
-            for (ConfirmedRequests cr : confirmedRequests) {
-                confirmedRequestsMap.put(cr.getEventId(), cr.getConfirmedRequests());
-            }
-        }
-        for (Long eventId : eventIds) {
-            if (!confirmedRequestsMap.containsKey(eventId)) {
-                confirmedRequestsMap.put(eventId, 0L);
-            }
-        }
-
-        List<Long> eventIdsList = eventList.stream()
-                .map(Event::getId)
-                .collect(Collectors.toList());
-        Map<Long, Integer> viewsMap = getEventsViewsMap(eventIdsList);
-
-        Set<EventShortDto> eventShortDtos = eventList.stream()
-                .map(event -> EventMapper.toEventShortDto(event,
-                        CategoryMapper.toCategoryDto(event.getCategory()),
-                        UserMapper.userToUserShortDto(event.getInitiator()),
-                        confirmedRequestsMap.get(event.getId()),
-                        viewsMap.get(event.getId())))
-                .collect(Collectors.toSet());
+        Set<EventShortDto> eventShortDtos = getEventsShorts(eventSet);
 
         return CompilationMapper.toCompilationDto(compilationRepository.save(compilationToUpdate), eventShortDtos);
     }
@@ -268,6 +171,26 @@ public class CompilationServiceImpl implements CompilationService {
         }
 
         return eventViewsMap;
+    }
+
+    private Set<EventShortDto> getEventsShorts(Set<Event> eventSet) {
+        List<Long> eventIds = eventSet.stream()
+                .map(Event::getId)
+                .collect(Collectors.toList());
+
+        Map<Long, Long> confirmedRequests =
+                requestRepository.getConfirmedRequestsByEvents(new ArrayList<>(eventSet))
+                        .stream().collect(Collectors.toMap(ConfirmedRequests::getEventId,
+                                ConfirmedRequests::getConfirmedRequests));
+        Map<Long, Integer> viewsMap = getEventsViewsMap(new ArrayList<>(eventIds));
+
+        return eventSet.stream()
+                .map(event -> EventMapper.toEventShortDto(event,
+                        CategoryMapper.toCategoryDto(event.getCategory()),
+                        UserMapper.userToUserShortDto(event.getInitiator()),
+                        confirmedRequests.getOrDefault(event.getId(), 0L),
+                        viewsMap.get(event.getId())))
+                .collect(Collectors.toSet());
     }
 
 }

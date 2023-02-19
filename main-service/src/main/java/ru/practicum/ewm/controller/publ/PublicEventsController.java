@@ -2,6 +2,7 @@ package ru.practicum.ewm.controller.publ;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +28,9 @@ public class PublicEventsController {
 
     private final StatsClient statClient;
 
+    @Value("${app.name}")
+    private String app;
+
     //Events
     //событие должно быть опубликовано
     //информация о событии должна включать в себя количество просмотров и количество подтвержденных запросов
@@ -35,14 +39,12 @@ public class PublicEventsController {
     public EventFullDto getEvents(@PathVariable Long id,
                                       HttpServletRequest request) {
         log.info("Получен Get запрос к эндпоинту: /events, id = {}", id);
-        statClient.createHit(new HitDto("ewm-server",
+        statClient.createHit(new HitDto(app,
                 request.getRequestURI(),
                 request.getRemoteAddr(),
                 LocalDateTime.now()));
 
-        EventFullDto eventDto = eventService.getById(id);
-
-        return eventDto;
+        return eventService.getById(id);
     }
 
     //это публичный эндпоинт, соответственно в выдаче должны быть только опубликованные события
@@ -64,7 +66,7 @@ public class PublicEventsController {
                                             @Positive @RequestParam(value = "size", defaultValue = "10") int size,
                                             HttpServletRequest request) {
         log.info("Получен Get запрос к эндпоинту: /events");
-        statClient.createHit(new HitDto("ewm-server",
+        statClient.createHit(new HitDto(app,
                 request.getRequestURI(),
                 request.getRemoteAddr(),
                 LocalDateTime.now()));

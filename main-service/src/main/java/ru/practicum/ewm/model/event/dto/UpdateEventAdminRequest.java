@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @RequiredArgsConstructor
-public class UpdateEventAdminRequest {
+public class UpdateEventAdminRequest extends UpdateEvent {
     @Size(min = 20, max = 2000)
     private String annotation;
     private Long category;
