@@ -143,22 +143,13 @@ public class EventServiceImpl implements EventService {
                     " чем через два часа от текущего момента. Value: " + eventDto.getEventDate());
         }
 
-        Category category;
         if (eventDto.getCategory() != null) {
-            category = categoryRepository.findById(eventDto.getCategory())
+            Category category = categoryRepository.findById(eventDto.getCategory())
                     .orElseThrow(() -> new NoSuchCategoryException("Category with id=" + eventDto.getCategory() + " not found."));
             event.setCategory(category);
-
-        } else {
-            category = event.getCategory();
         }
-
         if (eventDto.getAnnotation() != null && !event.getAnnotation().isBlank()) {
             event.setAnnotation(eventDto.getAnnotation());
-        }
-
-        if (eventDto.getCategory() != null) {
-            event.setCategory(category);
         }
 
         if (eventDto.getDescription() != null && !eventDto.getDescription().isBlank()) {
@@ -209,21 +200,14 @@ public class EventServiceImpl implements EventService {
                     " чем через час от текущего момента. Value: " + eventDto.getEventDate());
         }
 
-        Category category;
         if (eventDto.getCategory() != null) {
-            category = categoryRepository.findById(eventDto.getCategory())
+            Category category = categoryRepository.findById(eventDto.getCategory())
                     .orElseThrow(() -> new NoSuchCategoryException("Category with id=" + eventDto.getCategory() + " not found."));
-
-        } else {
-            category = event.getCategory();
+            event.setCategory(category);
         }
 
         if (eventDto.getAnnotation() != null) {
             event.setAnnotation(eventDto.getAnnotation());
-        }
-
-        if (eventDto.getCategory() != null) {
-            event.setCategory(category);
         }
 
         if (eventDto.getDescription() != null) {

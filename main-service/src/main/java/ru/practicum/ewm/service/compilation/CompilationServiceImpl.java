@@ -38,6 +38,7 @@ public class CompilationServiceImpl implements CompilationService {
     private final EventRepository eventRepository;
     private final RequestRepository requestRepository;
     private final StatsClient statsClient;
+    private final  DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Override
     public List<CompilationDto> getAll(boolean pinned, int from, int size) {
@@ -148,11 +149,11 @@ public class CompilationServiceImpl implements CompilationService {
         String[] urisArray = uris.toArray(new String[uris.size()]);
 
         ResponseEntity<Object> response = statsClient.getStats("2000-01-01 00:00:00",
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                LocalDateTime.now().format(formatter),
                 urisArray, false);
 
         List<LinkedHashMap<Object, Object>> stats = (List<LinkedHashMap<Object, Object>>) statsClient.getStats("2000-01-01 00:00:00",
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+                LocalDateTime.now().format(formatter),
                 urisArray, false).getBody();
 
         Map<Long, Integer> eventViewsMap = new HashMap<>();
