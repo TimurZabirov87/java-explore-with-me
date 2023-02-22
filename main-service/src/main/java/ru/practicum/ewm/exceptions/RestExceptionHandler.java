@@ -31,6 +31,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
                         NoSuchEventException.class,
                         NoSuchCompilationException.class,
                         NoSuchParticipationRequestException.class,
+                        NoSuchCommentException.class,
                         NoSuchCategoryException.class})
     protected ResponseEntity<ApiError> handleEntityNotFoundEx(RuntimeException ex, WebRequest request) {
         ApiError apiError = new ApiError("NOT_FOUND","Entity Not Found Exception", ex.getMessage());
@@ -49,6 +50,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
             IllegalEventDateTimeException.class,
             IllegalEventSortingException.class,
             IllegalEventStateException.class,
+            IllegalCommentStateException.class,
             RequesterIsInitiatorException.class,
             RequestForUnpublishedEventException.class,
             DoubleEventAddingException.class,
